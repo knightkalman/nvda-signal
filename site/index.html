@@ -1,0 +1,1015 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#101a20">
+  <title>NVDA Signal — Prices &amp; News</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #101a20;
+      --panel: #17242b;
+      --panel-light: #1c2b33;
+      --line: #30424a;
+      --text: #edf2ec;
+      --muted: #9aadae;
+      --green: #76d6a0;
+      --blue: #77c8ec;
+      --orange: #ffbb70;
+      --red: #ff8d82;
+      --yellow: #f3d17c;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background:
+        radial-gradient(ellipse at 10% -20%, #263c39 0, transparent 42rem),
+        var(--bg);
+      color: var(--text);
+      font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    a { color: var(--blue); }
+    button, select { font: inherit; }
+
+    .shell { width: min(1120px, calc(100% - 36px)); margin: 0 auto; }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 30px 0 24px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .eyebrow, .label, .section-kicker {
+      color: var(--muted);
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, p { margin-top: 0; }
+    h1 { margin-bottom: 4px; font-size: clamp(1.8rem, 4vw, 2.5rem); letter-spacing: -0.045em; }
+    h2 { margin-bottom: 5px; font-size: 1.15rem; }
+
+    .brand-line { display: flex; align-items: center; gap: 12px; }
+    .brand-mark { color: var(--green); font-size: 1.45rem; }
+    .subtitle, .updated { color: var(--muted); }
+    .header-actions { display: flex; align-items: center; gap: 14px; }
+
+    .button, .range-button {
+      padding: 8px 13px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: var(--panel);
+      color: var(--text);
+      cursor: pointer;
+    }
+
+    .button:hover, .range-button:hover { border-color: var(--green); }
+    .button:focus-visible, .range-button:focus-visible, a:focus-visible {
+      outline: 2px solid var(--green);
+      outline-offset: 3px;
+    }
+
+    main { padding: 26px 0 50px; }
+    .section-heading { display: flex; justify-content: space-between; align-items: end; gap: 16px; margin: 30px 0 14px; }
+    .section-heading:first-child { margin-top: 0; }
+    .section-heading p { margin: 0; color: var(--muted); }
+    .price-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 15px; }
+
+    .card, .chart-card, .news-card {
+      border: 1px solid var(--line);
+      border-radius: 13px;
+      background: linear-gradient(145deg, var(--panel-light), var(--panel));
+    }
+
+    .card { padding: 19px 20px; }
+    .card-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+    .symbol { color: var(--muted); font-size: 0.82rem; }
+    .price { margin: 15px 0 6px; font-size: clamp(2rem, 5vw, 2.8rem); font-variant-numeric: tabular-nums; letter-spacing: -0.055em; }
+    .change-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+    .change { font-weight: 700; font-variant-numeric: tabular-nums; }
+    .positive { color: var(--green); }
+    .negative { color: var(--red); }
+    .neutral { color: var(--muted); }
+    .validity, .direction {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 8px;
+      border-radius: 99px;
+      background: #263841;
+      color: var(--muted);
+      font-size: 0.76rem;
+      font-weight: 700;
+    }
+
+    .validity.valid { background: #1b3a31; color: var(--green); }
+    .validity.stale, .validity.insufficient { background: #40351f; color: var(--yellow); }
+    .card-foot { margin: 16px 0 0; color: var(--muted); font-size: 0.82rem; }
+    .chart-card { padding: 17px 18px 12px; }
+    .chart-toolbar { display: flex; align-items: center; gap: 5px; }
+    .range-button { padding: 5px 10px; border-color: transparent; background: transparent; color: var(--muted); }
+    .range-button[aria-pressed="true"] { border-color: var(--line); background: #263841; color: var(--text); }
+    .chart-wrap { position: relative; overflow-x: auto; }
+    #price-chart { display: block; width: 100%; min-width: 620px; height: auto; overflow: visible; }
+    .grid-line { stroke: #30424a; stroke-dasharray: 3 6; }
+    .axis-text { fill: #9aadae; font-size: 12px; }
+    .series-nvda { fill: none; stroke: var(--green); stroke-width: 2.6; stroke-linejoin: round; stroke-linecap: round; }
+    .weekend-carry { fill: none; stroke-width: 2.6; stroke-dasharray: 2 6; stroke-linecap: round; }
+    .weekend-carry-nvda { stroke: var(--green); }
+    .weekend-closed-band { fill: #f3d17c; opacity: 0.08; }
+    .weekend-boundary { stroke: #f3d17c; stroke-width: 1.2; stroke-dasharray: 3 5; opacity: 0.8; }
+    .weekend-label { fill: #f3d17c; font-size: 11px; font-weight: 700; letter-spacing: 0.06em; }
+    .point-nvda { fill: var(--green); }
+    .sentiment-marker { stroke: #101a20; stroke-width: 2; cursor: help; }
+    .sentiment-marker.bullish { fill: var(--green); }
+    .sentiment-marker.bearish { fill: var(--red); }
+    .sentiment-marker.neutral { fill: var(--yellow); }
+    .news-stem { stroke: var(--orange); stroke-width: 1.4; opacity: 0.65; }
+    .news-marker { fill: var(--orange); stroke: #17242b; stroke-width: 2; cursor: pointer; }
+    .news-marker.sentiment-bullish, .news-stem.sentiment-bullish { fill: var(--green); stroke: var(--green); }
+    .news-marker.sentiment-bearish, .news-stem.sentiment-bearish { fill: var(--red); stroke: var(--red); }
+    .news-marker.sentiment-mixed, .news-marker.sentiment-neutral, .news-marker.sentiment-unclear,
+    .news-stem.sentiment-mixed, .news-stem.sentiment-neutral, .news-stem.sentiment-unclear { fill: var(--yellow); stroke: var(--yellow); }
+    .news-marker:hover, .news-marker:focus { stroke: white; stroke-width: 3; outline: none; }
+    .chart-legend { display: flex; flex-wrap: wrap; gap: 18px; padding: 8px 0 0; color: var(--muted); font-size: 0.82rem; }
+    .legend-item { display: inline-flex; align-items: center; gap: 7px; }
+    .legend-line { width: 18px; height: 3px; border-radius: 4px; background: var(--green); }
+    .legend-line.weekend { height: 0; border-top: 2px dotted var(--muted); background: transparent; }
+    .legend-dot { width: 9px; height: 9px; border-radius: 50%; background: var(--orange); }
+    .chart-note, .method-note { color: var(--muted); font-size: 0.82rem; }
+    .chart-note { margin: 11px 0 0; }
+    .method-note { margin: 13px 2px 0; }
+    .news-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 11px; }
+    .news-card { padding: 15px 16px; transition: border-color 150ms, background 150ms; }
+    .news-card.highlight { border-color: var(--orange); background: #30291f; }
+    .news-meta { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; color: var(--muted); font-size: 0.77rem; }
+    .news-source { color: var(--orange); font-weight: 700; }
+    .news-card h3 { margin: 0 0 7px; font-size: 1rem; line-height: 1.4; }
+    .news-card h3 a { color: var(--text); text-decoration-color: #6a7e80; text-underline-offset: 3px; }
+    .news-card h3 a:hover { color: var(--blue); }
+    .news-summary { margin: 0; color: #b4c2c0; font-size: 0.87rem; }
+    .analysis-box { margin-top: 13px; padding: 11px 12px; border: 1px solid #3a5053; border-radius: 9px; background: #142126; }
+    .analysis-head { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-bottom: 7px; }
+    .analysis-direction, .analysis-evidence { padding: 2px 7px; border-radius: 99px; background: #263841; color: var(--muted); font-size: 0.72rem; font-weight: 750; text-transform: uppercase; letter-spacing: 0.035em; }
+    .analysis-direction.bullish, .analysis-evidence.supported { background: #1b3a31; color: var(--green); }
+    .analysis-direction.bearish { background: #402b29; color: var(--red); }
+    .analysis-direction.mixed, .analysis-direction.unclear, .analysis-evidence.limited, .analysis-evidence.insufficient { background: #40351f; color: var(--yellow); }
+    .analysis-confidence { color: var(--muted); font-size: 0.75rem; }
+    .analysis-copy { margin: 0; color: #c3cfcb; font-size: 0.84rem; }
+    .analysis-copy + .analysis-copy { margin-top: 5px; }
+    .analysis-unavailable { color: var(--yellow); font-size: 0.82rem; }
+    .empty, .error { padding: 24px; border: 1px dashed var(--line); border-radius: 12px; color: var(--muted); text-align: center; }
+    .error { border-color: #774d48; color: #ffc1b8; }
+    .footnote { margin: 30px 0 0; padding-top: 15px; border-top: 1px solid var(--line); color: var(--muted); font-size: 0.8rem; }
+
+    @media (max-width: 680px) {
+      .shell { width: min(100% - 24px, 1120px); }
+      header { align-items: flex-start; padding-top: 22px; }
+      .header-actions { align-items: flex-end; flex-direction: column-reverse; gap: 8px; }
+      .updated { text-align: right; font-size: 0.78rem; }
+      .price-grid, .news-list { grid-template-columns: 1fr; }
+      .section-heading { align-items: flex-start; flex-direction: column; }
+      .chart-toolbar { align-self: stretch; justify-content: space-between; }
+      .card { padding: 16px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div>
+        <div class="eyebrow">Public market monitor</div>
+        <div class="brand-line">
+          <span class="brand-mark" aria-hidden="true">◈</span>
+          <h1>NVDA Signal</h1>
+        </div>
+        <div class="subtitle">NVIDIA Corp. (NVDA) stock price, direction &amp; AI/semiconductor headlines</div>
+      </div>
+      <div class="header-actions">
+        <div class="updated" id="last-updated">Loading latest data…</div>
+        <button class="button" id="refresh-button" type="button">Refresh</button>
+      </div>
+    </header>
+
+    <main>
+      <section aria-labelledby="market-title">
+        <div class="section-heading">
+          <div>
+            <div class="section-kicker">Market snapshot</div>
+            <h2 id="market-title">NVIDIA Corporation</h2>
+          </div>
+          <p>USD per share · direction vs previous daily close</p>
+        </div>
+        <div class="price-grid" id="price-cards" aria-live="polite"></div>
+        <p class="method-note">Sentiment is descriptive, not predictive. “Valid” means the quote has both closes and its provider timestamp is within 48 hours; stale or incomplete inputs are clearly marked.</p>
+      </section>
+
+      <section aria-labelledby="chart-title">
+        <div class="section-heading">
+          <div>
+            <div class="section-kicker">Price &amp; news timeline</div>
+            <h2 id="chart-title">Price history with published headlines</h2>
+          </div>
+          <div class="chart-toolbar" role="group" aria-label="Chart time range">
+            <button class="range-button" type="button" data-range="1" aria-pressed="true">24h</button>
+            <button class="range-button" type="button" data-range="7" aria-pressed="false">7d</button>
+            <button class="range-button" type="button" data-range="30" aria-pressed="false">30d</button>
+            <button class="range-button" type="button" data-range="all" aria-pressed="false">All</button>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-wrap">
+            <svg id="price-chart" viewBox="0 0 1000 410" role="img" aria-label="NVDA stock prices and published news timeline"></svg>
+          </div>
+          <div class="chart-legend" aria-label="Chart legend">
+            <span class="legend-item"><span class="legend-line"></span> NVIDIA Corp. (NVDA)</span>
+            <span class="legend-item"><span class="legend-line weekend"></span> Market closed · last price carried forward</span>
+            <span class="legend-item"><span class="legend-dot"></span> Unassessed news</span>
+            <span class="legend-item"><span class="positive">●</span> Bullish news</span>
+            <span class="legend-item"><span class="negative">●</span> Bearish news</span>
+            <span class="legend-item"><span class="neutral">●</span> Mixed / neutral news</span>
+            <span class="legend-item"><span class="positive">▲</span> Price above previous close</span>
+            <span class="legend-item"><span class="negative">▼</span> Price below previous close</span>
+            <span class="legend-item"><span class="neutral">◆</span> Price unchanged</span>
+          </div>
+          <p class="chart-note" id="chart-note">Loading price history…</p>
+        </div>
+      </section>
+
+      <section aria-labelledby="news-title">
+        <div class="section-heading">
+          <div>
+            <div class="section-kicker">Latest reporting</div>
+            <h2 id="news-title">NVIDIA &amp; AI semiconductor news</h2>
+          </div>
+          <p id="news-count"></p>
+        </div>
+        <div class="news-list" id="news-list" aria-live="polite"></div>
+      </section>
+
+      <p class="footnote">Price source: Yahoo Finance chart data and Massive Stocks API for NVDA. Dotted weekend chart segments carry forward the last traded price while NASDAQ regular trading is closed; they are not live or indicative weekend quotes. Headlines: Yahoo Finance NVDA RSS, Google News NVDA feed, CNBC Technology &amp; Business, and BBC Technology &amp; Business. New headlines are assessed by the managed Antigravity agent; older stories are reviewed hourly in batches of up to 5, with observed price moves shown as context rather than causal evidence. Claims are not independently verified, confidence is not calibrated, and this is not investment advice. Collection and open-dashboard refresh run every five minutes when GitHub Actions and the data provider are available; updates may be delayed.</p>
+    </main>
+  </div>
+
+  <script>
+    "use strict";
+
+    const SVG_NS = "http://www.w3.org/2000/svg";
+    const priceCards = document.querySelector("#price-cards");
+    const chart = document.querySelector("#price-chart");
+    const newsList = document.querySelector("#news-list");
+    const chartNote = document.querySelector("#chart-note");
+    const dateFormatter = new Intl.DateTimeFormat(undefined, {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZone: "UTC"
+    });
+    const newYorkDateFormatter = new Intl.DateTimeFormat("en-US", {
+      timeZone: "America/New_York",
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+      weekday: "short",
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23"
+    });
+    const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    let records = [];
+    let articles = [];
+    let rangeDays = 1;
+
+    function parseDate(value) {
+      if (!value) return null;
+      const date = new Date(value);
+      return Number.isFinite(date.getTime()) ? date : null;
+    }
+
+    function newYorkParts(date) {
+      return Object.fromEntries(newYorkDateFormatter.formatToParts(date)
+        .filter(part => part.type !== "literal")
+        .map(part => [part.type, part.value]));
+    }
+
+    function newYorkWallTime(year, month, day, hour, minute = 0) {
+      const desiredUtc = Date.UTC(year, month - 1, day, hour, minute);
+      const observed = newYorkParts(new Date(desiredUtc));
+      const observedUtc = Date.UTC(
+        Number(observed.year),
+        Number(observed.month) - 1,
+        Number(observed.day),
+        Number(observed.hour),
+        Number(observed.minute || 0)
+      );
+      return new Date(desiredUtc - (observedUtc - desiredUtc));
+    }
+
+    function weekendWindowForFriday(year, month, day) {
+      const friday = new Date(Date.UTC(year, month - 1, day));
+      const monday = new Date(friday.getTime() + 3 * 86400000);
+      return {
+        close: newYorkWallTime(year, month, day, 16, 0),
+        open: newYorkWallTime(
+          monday.getUTCFullYear(),
+          monday.getUTCMonth() + 1,
+          monday.getUTCDate(),
+          9,
+          30
+        )
+      };
+    }
+
+    function weekendWindowAfter(date) {
+      const parts = newYorkParts(date);
+      const weekday = weekdays.indexOf(parts.weekday);
+      const daysSinceFriday = (weekday - 5 + 7) % 7;
+      const localFriday = new Date(Date.UTC(
+        Number(parts.year),
+        Number(parts.month) - 1,
+        Number(parts.day) - daysSinceFriday
+      ));
+      return weekendWindowForFriday(
+        localFriday.getUTCFullYear(),
+        localFriday.getUTCMonth() + 1,
+        localFriday.getUTCDate()
+      );
+    }
+
+    function currentWeekendWindow(now) {
+      const parts = newYorkParts(now);
+      const weekday = weekdays.indexOf(parts.weekday);
+      const hour = Number(parts.hour);
+      const minute = Number(parts.minute || 0);
+      let daysSinceFriday = null;
+      if (weekday === 5 && hour >= 16) daysSinceFriday = 0;
+      else if (weekday === 6) daysSinceFriday = 1;
+      else if (weekday === 0) daysSinceFriday = 2;
+      else if (weekday === 1 && (hour < 9 || (hour === 9 && minute < 30))) daysSinceFriday = 3;
+      if (daysSinceFriday === null) return null;
+
+      const localFriday = new Date(Date.UTC(
+        Number(parts.year),
+        Number(parts.month) - 1,
+        Number(parts.day) - daysSinceFriday
+      ));
+      const window = weekendWindowForFriday(
+        localFriday.getUTCFullYear(),
+        localFriday.getUTCMonth() + 1,
+        localFriday.getUTCDate()
+      );
+      return now >= window.close && now < window.open ? window : null;
+    }
+
+    function formatDate(value) {
+      const date = value instanceof Date ? value : parseDate(value);
+      return date ? `${dateFormatter.format(date)} UTC` : "Time unavailable";
+    }
+
+    function priceAssessment(quote) {
+      const price = Number(quote?.price);
+      const previous = Number(quote?.previous_close);
+      const timestamp = parseDate(quote?.price_timestamp);
+
+      if (!Number.isFinite(price) || price <= 0 ||
+          !Number.isFinite(previous) || previous <= 0) {
+        return {
+          status: "insufficient",
+          label: "Insufficient data",
+          direction: "unknown",
+          reason: "A positive current price and previous daily close are required."
+        };
+      }
+      if (!timestamp) {
+        return {
+          status: "insufficient",
+          label: "Unverified timestamp",
+          direction: "unknown",
+          reason: "The provider did not supply a usable quote timestamp."
+        };
+      }
+
+      const age = Date.now() - timestamp.getTime();
+      if (age < -5 * 60 * 1000) {
+        return {
+          status: "insufficient",
+          label: "Unverified timestamp",
+          direction: "unknown",
+          reason: "The provider quote timestamp is unexpectedly in the future."
+        };
+      }
+
+      const direction = price > previous ? "bullish" : price < previous ? "bearish" : "neutral";
+      if (age > 48 * 60 * 60 * 1000) {
+        return {
+          status: "stale",
+          label: "Stale quote",
+          direction,
+          reason: "The provider quote timestamp is more than 48 hours old."
+        };
+      }
+      return {
+        status: "valid",
+        label: "Valid · ≤48h",
+        direction,
+        reason: "Positive current and previous-close prices; quote timestamp is within 48 hours."
+      };
+    }
+
+    function element(tag, className, text) {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text !== undefined) node.textContent = text;
+      return node;
+    }
+
+    function renderPriceCards() {
+      priceCards.replaceChildren();
+      const latest = records.at(-1);
+      const quotes = latest?.prices || {};
+      const benchmarks = [
+        ["nvda", "NVIDIA Corp.", "NVDA"]
+      ];
+
+      for (const [key, name, symbol] of benchmarks) {
+        const quote = quotes[key];
+        const card = element("article", "card");
+        const head = element("div", "card-head");
+        const identity = element("div");
+        identity.append(element("div", "label", name));
+        identity.append(element("div", "symbol", symbol));
+        head.append(identity);
+
+        if (!quote) {
+          head.append(element("span", "validity insufficient", "No recent quote"));
+          card.append(head, element("p", "price", "—"));
+          card.append(element("p", "card-foot", "The latest collection did not return this price."));
+          priceCards.append(card);
+          continue;
+        }
+
+        const assessment = priceAssessment(quote);
+        const validity = element("span", `validity ${assessment.status}`, assessment.label);
+        validity.title = assessment.reason;
+        head.append(validity);
+        card.append(head);
+
+        const currency = quote.currency || "USD";
+        const price = element("p", "price", `${currency} ${Number(quote.price).toFixed(2)}`);
+        card.append(price);
+
+        const change = Number(quote.change);
+        const percent = Number(quote.change_percent);
+        const changeRow = element("div", "change-row");
+        const hasChange = assessment.direction !== "unknown" &&
+          Number.isFinite(change) && Number.isFinite(percent);
+        const changeClass = !hasChange ? "change neutral" :
+          change > 0 ? "change positive" : change < 0 ? "change negative" : "change neutral";
+        changeRow.append(element("span", changeClass, hasChange
+          ? `${change > 0 ? "+" : ""}${change.toFixed(2)} (${percent > 0 ? "+" : ""}${percent.toFixed(2)}%)`
+          : "Change unavailable"));
+        changeRow.append(element("span", `direction ${assessment.direction}`,
+          assessment.direction === "unknown" ? "Direction unavailable" : assessment.direction));
+        card.append(changeRow);
+
+        const previousClose = Number(quote.previous_close);
+        const closeDescription = Number.isFinite(previousClose) && previousClose > 0
+          ? `previous close ${currency} ${previousClose.toFixed(2)}`
+          : "previous close unavailable";
+        const foot = element("p", "card-foot",
+          `Quote: ${formatDate(quote.price_timestamp)} · ${closeDescription}`);
+        card.append(foot);
+        priceCards.append(card);
+      }
+    }
+
+    function svgElement(tag, attrs = {}, text) {
+      const node = document.createElementNS(SVG_NS, tag);
+      for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, String(value));
+      if (text !== undefined) node.textContent = text;
+      return node;
+    }
+
+    function drawChart() {
+      chart.replaceChildren();
+      const histories = new Map();
+      const sentimentHistory = new Map();
+      for (const record of records) {
+        for (const key of ["nvda"]) {
+          const quote = record.prices?.[key];
+          if (!quote) continue;
+          const history = Array.isArray(quote.history) && quote.history.length
+            ? quote.history
+            : [{ timestamp: quote.price_timestamp || record.collected_at, price: quote.price }];
+          for (const point of history) {
+            const time = parseDate(point.timestamp);
+            const value = Number(point.price);
+            if (!time || !Number.isFinite(value) || value <= 0) continue;
+            const id = `${key}:${time.getTime()}`;
+            histories.set(id, { key, time, value });
+          }
+          const sentimentTime = parseDate(quote.price_timestamp || record.collected_at);
+          const price = Number(quote.price);
+          if (sentimentTime && Number.isFinite(price) && price > 0) {
+            const point = {
+              key,
+              time: sentimentTime,
+              value: price,
+              direction: quote.price_change_sentiment || "unknown",
+              validity: priceAssessment(quote).status
+            };
+            sentimentHistory.set(`${key}:${sentimentTime.getTime()}`, point);
+          }
+        }
+      }
+      const sentimentPoints = [...sentimentHistory.values()];
+      const pricePoints = [...histories.values()].sort((a, b) => a.time - b.time);
+      const weekendWindows = new Map();
+      for (const key of ["nvda"]) {
+        const series = pricePoints.filter(point => point.key === key);
+        for (let index = 1; index < series.length; index += 1) {
+          const previous = series[index - 1];
+          const next = series[index];
+          if (next.time - previous.time < 36 * 60 * 60 * 1000) continue;
+          const window = weekendWindowAfter(previous.time);
+          if (previous.time > window.close || next.time < window.open ||
+              window.close - previous.time > 24 * 60 * 60 * 1000 ||
+              next.time - window.open > 24 * 60 * 60 * 1000) continue;
+          weekendWindows.set(window.close.getTime(), window);
+        }
+      }
+      const activeWeekend = currentWeekendWindow(new Date());
+      if (activeWeekend) weekendWindows.set(activeWeekend.close.getTime(), activeWeekend);
+      const datedNews = articles.flatMap(article => {
+        const time = parseDate(article.published_at) || parseDate(article.first_seen_at);
+        return time ? [{ article, time }] : [];
+      });
+      if (!pricePoints.length) {
+        chartNote.textContent = "No price history is available yet.";
+        chart.append(svgElement("text", { x: 500, y: 205, "text-anchor": "middle", class: "axis-text" }, "No price history yet"));
+        return;
+      }
+
+      const latestPriceTime = Math.max(...pricePoints.map(point => point.time.getTime()));
+      const latestNewsTime = datedNews.length
+        ? Math.max(...datedNews.map(item => item.time.getTime()))
+        : latestPriceTime;
+      const latestTime = Math.max(latestPriceTime, latestNewsTime);
+      const cutoff = rangeDays === "all" ? -Infinity : latestTime - Number(rangeDays) * 86400000;
+      const visiblePoints = pricePoints.filter(point => point.time.getTime() >= cutoff);
+      const visibleNews = datedNews.filter(item => item.time.getTime() >= cutoff);
+      if (!visiblePoints.length) {
+        chartNote.textContent = "No price observations are available in this range.";
+        chart.append(svgElement("text", { x: 500, y: 205, "text-anchor": "middle", class: "axis-text" }, "No price observations in range"));
+        return;
+      }
+      let minTime = Math.min(...visiblePoints.map(point => point.time.getTime()));
+      let maxTime = Math.max(...visiblePoints.map(point => point.time.getTime()));
+      const visibleWeekendWindows = [...weekendWindows.values()].filter(window =>
+        window.open.getTime() >= minTime &&
+        window.close.getTime() <= maxTime + 24 * 60 * 60 * 1000
+      );
+      for (const window of visibleWeekendWindows) {
+        if (window.open.getTime() > maxTime) maxTime = window.open.getTime();
+      }
+      if (minTime === maxTime) {
+        minTime -= 12 * 60 * 60 * 1000;
+        maxTime += 12 * 60 * 60 * 1000;
+      }
+      const outsideCoverageNews = visibleNews.filter(item =>
+        item.time.getTime() < minTime || item.time.getTime() > maxTime
+      );
+      chart.setAttribute("viewBox", `0 0 1000 ${outsideCoverageNews.length ? 500 : 410}`);
+
+      const width = 1000;
+      const left = 74;
+      const right = 24;
+      const top = 86;
+      const bottom = 350;
+      const values = visiblePoints.map(point => point.value);
+      let minValue = Math.min(...values);
+      let maxValue = Math.max(...values);
+      const padding = Math.max((maxValue - minValue) * 0.15, maxValue * 0.006);
+      minValue = Math.max(0, minValue - padding);
+      maxValue += padding;
+      if (minValue === maxValue) maxValue += 1;
+
+      const x = time => left + (time.getTime() - minTime) / (maxTime - minTime) * (width - left - right);
+      const y = value => bottom - (value - minValue) / (maxValue - minValue) * (bottom - top);
+
+      for (let index = 0; index <= 4; index += 1) {
+        const value = minValue + (maxValue - minValue) * index / 4;
+        const lineY = y(value);
+        chart.append(svgElement("line", { x1: left, x2: width - right, y1: lineY, y2: lineY, class: "grid-line" }));
+        chart.append(svgElement("text", { x: left - 10, y: lineY + 4, "text-anchor": "end", class: "axis-text" }, `$${value.toFixed(0)}`));
+      }
+
+      for (const window of visibleWeekendWindows) {
+        const closeX = x(window.close);
+        const openX = x(window.open);
+        const bandStart = Math.max(left, closeX);
+        const bandEnd = Math.min(width - right, openX);
+        if (bandEnd <= bandStart) continue;
+        chart.append(svgElement("rect", {
+          x: bandStart,
+          y: top,
+          width: bandEnd - bandStart,
+          height: bottom - top,
+          class: "weekend-closed-band"
+        }));
+        chart.append(svgElement("line", {
+          x1: Math.max(left, closeX),
+          x2: Math.max(left, closeX),
+          y1: top,
+          y2: bottom,
+          class: "weekend-boundary"
+        }));
+        chart.append(svgElement("line", {
+          x1: Math.min(width - right, openX),
+          x2: Math.min(width - right, openX),
+          y1: top,
+          y2: bottom,
+          class: "weekend-boundary"
+        }));
+        chart.append(svgElement("text", {
+          x: (bandStart + bandEnd) / 2,
+          y: top + 15,
+          "text-anchor": "middle",
+          class: "weekend-label"
+        }, "MARKET CLOSED"));
+        chart.append(svgElement("text", {
+          x: Math.min(width - right, openX),
+          y: top + 30,
+          "text-anchor": openX > width - right - 65 ? "end" : "middle",
+          class: "weekend-label"
+        }, "REOPENS"));
+      }
+
+      for (const key of ["nvda"]) {
+        const series = visiblePoints.filter(point => point.key === key);
+        if (!series.length) continue;
+        const className = "nvda";
+        const solidPaths = [];
+        let path = `M ${x(series[0].time).toFixed(1)} ${y(series[0].value).toFixed(1)}`;
+        for (let index = 1; index < series.length; index += 1) {
+          const previous = series[index - 1];
+          const point = series[index];
+          const weekend = visibleWeekendWindows.find(window =>
+            previous.time <= window.close && point.time >= window.open
+          );
+          if (!weekend) {
+            path += ` L ${x(point.time).toFixed(1)} ${y(point.value).toFixed(1)}`;
+            continue;
+          }
+          path += ` L ${x(weekend.close).toFixed(1)} ${y(previous.value).toFixed(1)}`;
+          solidPaths.push(path);
+          chart.append(svgElement("path", {
+            d: `M ${x(weekend.close).toFixed(1)} ${y(previous.value).toFixed(1)} L ${x(weekend.open).toFixed(1)} ${y(previous.value).toFixed(1)}`,
+            class: `weekend-carry weekend-carry-${className}`
+          }));
+          path = `M ${x(point.time).toFixed(1)} ${y(point.value).toFixed(1)}`;
+        }
+        const currentWindow = activeWeekend && visibleWeekendWindows.includes(activeWeekend)
+          ? activeWeekend
+          : null;
+        const latestPoint = series.at(-1);
+        if (currentWindow && latestPoint.time <= currentWindow.close &&
+            currentWindow.close - latestPoint.time <= 24 * 60 * 60 * 1000) {
+          path += ` L ${x(currentWindow.close).toFixed(1)} ${y(latestPoint.value).toFixed(1)}`;
+          solidPaths.push(path);
+          chart.append(svgElement("path", {
+            d: `M ${x(currentWindow.close).toFixed(1)} ${y(latestPoint.value).toFixed(1)} L ${x(currentWindow.open).toFixed(1)} ${y(latestPoint.value).toFixed(1)}`,
+            class: `weekend-carry weekend-carry-${className}`
+          }));
+        } else {
+          solidPaths.push(path);
+        }
+        for (const solidPath of solidPaths) {
+          chart.append(svgElement("path", { d: solidPath, class: `series-${className}` }));
+        }
+        if (series.length === 1) {
+          chart.append(svgElement("circle", { cx: x(series[0].time), cy: y(series[0].value), r: 4, class: `point-${className}` }));
+        }
+      }
+
+      for (const point of sentimentPoints) {
+        if (point.time.getTime() < minTime || point.time.getTime() > maxTime) continue;
+        if (!["bullish", "bearish", "neutral"].includes(point.direction)) continue;
+        const pointX = x(point.time);
+        const pointY = y(point.value);
+        const markerPath = point.direction === "bullish"
+          ? `M ${pointX} ${pointY - 7} L ${pointX - 6} ${pointY + 4} L ${pointX + 6} ${pointY + 4} Z`
+          : point.direction === "bearish"
+            ? `M ${pointX - 6} ${pointY - 4} L ${pointX + 6} ${pointY - 4} L ${pointX} ${pointY + 7} Z`
+            : `M ${pointX} ${pointY - 6} L ${pointX + 6} ${pointY} L ${pointX} ${pointY + 6} L ${pointX - 6} ${pointY} Z`;
+        const sentimentMarker = svgElement("path", {
+          d: markerPath,
+          class: `sentiment-marker ${point.direction}`,
+          "pointer-events": "all"
+        });
+        sentimentMarker.append(svgElement(
+          "title",
+          {},
+          `NVDA ${point.direction} sentiment at ${formatDate(point.time)}; quote validity: ${point.validity}`
+        ));
+        chart.append(sentimentMarker);
+      }
+
+      const tickCount = 5;
+      for (let index = 0; index < tickCount; index += 1) {
+        const tickTime = new Date(minTime + (maxTime - minTime) * index / (tickCount - 1));
+        const tickX = x(tickTime);
+        chart.append(svgElement("text", { x: tickX, y: 382, "text-anchor": index === 0 ? "start" : index === tickCount - 1 ? "end" : "middle", class: "axis-text" },
+          new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric", timeZone: "UTC" }).format(tickTime)));
+      }
+
+      const clusterNews = (items, xForTime) => {
+        const clusters = [];
+        for (const item of [...items].sort((a, b) => a.time - b.time)) {
+          const pointX = xForTime(item.time);
+          let cluster = clusters.at(-1);
+          if (!cluster || pointX - cluster.x > 14) {
+            cluster = { x: pointX, items: [] };
+            clusters.push(cluster);
+          }
+          cluster.items.push(item.article);
+          cluster.x = cluster.items.reduce((sum, article) => {
+            const time = parseDate(article.published_at) || parseDate(article.first_seen_at);
+            return sum + xForTime(time);
+          }, 0) / cluster.items.length;
+        }
+        return clusters;
+      };
+      const appendNewsMarkers = (clusters, markerY, stemTop, stemBottom) => {
+        for (const cluster of clusters) {
+          const directions = [...new Set(cluster.items
+            .map(article => article.analysis?.direction)
+            .filter(direction => ["bullish", "bearish", "mixed", "neutral", "unclear"].includes(direction)))];
+          const sentiment = directions.length === 0 ? "unassessed" :
+            directions.length === 1 ? directions[0] : "mixed";
+          const sentimentLabel = directions.length === 0 ? "unassessed" :
+            directions.length === 1 ? directions[0] : "mixed";
+          chart.append(svgElement("line", {
+            x1: cluster.x, x2: cluster.x, y1: stemTop, y2: stemBottom,
+            class: `news-stem sentiment-${sentiment}`
+          }));
+          const marker = svgElement("circle", {
+            cx: cluster.x,
+            cy: markerY,
+            r: Math.min(6 + Math.log2(cluster.items.length) * 2, 12),
+            class: `news-marker sentiment-${sentiment}`,
+            tabindex: "0",
+            role: "button",
+            "aria-label": `${cluster.items.length} ${sentimentLabel} news ${cluster.items.length === 1 ? "story" : "stories"}; select to highlight in the news list`
+          });
+          marker.append(svgElement(
+            "title",
+            {},
+            `${cluster.items.length} ${sentimentLabel} news ${cluster.items.length === 1 ? "story" : "stories"} — select to highlight`
+          ));
+          const highlight = () => {
+            document.querySelectorAll(".news-card.highlight").forEach(card => card.classList.remove("highlight"));
+            const firstCard = [...document.querySelectorAll(".news-card")]
+              .find(card => card.dataset.articleId === cluster.items[0].id);
+            if (firstCard) {
+              firstCard.classList.add("highlight");
+              firstCard.scrollIntoView({ behavior: "smooth", block: "center" });
+              firstCard.focus({ preventScroll: true });
+            }
+          };
+          marker.addEventListener("click", highlight);
+          marker.addEventListener("keydown", event => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              highlight();
+            }
+          });
+          chart.append(marker);
+          if (cluster.items.length > 1) {
+            chart.append(svgElement("text", { x: cluster.x, y: markerY + 3, "text-anchor": "middle", fill: "#101a20", "font-size": 9, "font-weight": 800, "pointer-events": "none" }, String(cluster.items.length)));
+          }
+        }
+      };
+      const priceCoverageNews = visibleNews.filter(item =>
+        item.time.getTime() >= minTime && item.time.getTime() <= maxTime
+      );
+      appendNewsMarkers(clusterNews(priceCoverageNews, x), 34, 40, 70);
+
+      if (outsideCoverageNews.length) {
+        const laneTop = 410;
+        const laneLeft = left;
+        const laneRight = width - right;
+        const laneTimes = outsideCoverageNews.map(item => item.time.getTime());
+        let laneMinTime = Math.min(...laneTimes);
+        let laneMaxTime = Math.max(...laneTimes);
+        if (laneMinTime === laneMaxTime) {
+          laneMinTime -= 12 * 60 * 60 * 1000;
+          laneMaxTime += 12 * 60 * 60 * 1000;
+        }
+        const laneX = time => laneLeft +
+          (time.getTime() - laneMinTime) / (laneMaxTime - laneMinTime) * (laneRight - laneLeft);
+        chart.append(svgElement("text", { x: laneLeft, y: laneTop + 15, class: "axis-text" }, "NEWS OUTSIDE PRICE COVERAGE"));
+        chart.append(svgElement("line", {
+          x1: laneLeft, x2: laneRight, y1: laneTop + 44, y2: laneTop + 44, class: "grid-line"
+        }));
+        for (let index = 0; index < tickCount; index += 1) {
+          const tickTime = new Date(laneMinTime + (laneMaxTime - laneMinTime) * index / (tickCount - 1));
+          chart.append(svgElement("text", {
+            x: laneX(tickTime), y: laneTop + 77,
+            "text-anchor": index === 0 ? "start" : index === tickCount - 1 ? "end" : "middle",
+            class: "axis-text"
+          }, new Intl.DateTimeFormat(undefined, {
+            month: "short", day: "numeric", timeZone: "UTC"
+          }).format(tickTime)));
+        }
+        appendNewsMarkers(clusterNews(outsideCoverageNews, laneX), laneTop + 34, laneTop + 20, laneTop + 30);
+      }
+
+      const latestProviderTime = new Date(latestPriceTime);
+      const historyStartTime = pricePoints[0].time;
+      const historyEndTime = pricePoints.at(-1).time;
+      const visibleHours = rangeDays === "all" ? "all available history" : `last ${rangeDays} day${rangeDays === 1 ? "" : "s"}`;
+      const newsCoverageNote = outsideCoverageNews.length
+        ? ` ${outsideCoverageNews.length} news stories outside the price-history window are shown in a separate timeline.`
+        : "";
+      const weekendNote = visibleWeekendWindows.length
+        ? ` Market closed ${formatDate(visibleWeekendWindows[0].close)} until ${formatDate(visibleWeekendWindows[0].open)}; dotted segments carry forward the last traded price, not live weekend quotes.`
+        : "";
+      chartNote.textContent = `${visiblePoints.length} collected price observations shown for the ${visibleHours}. Price history spans ${formatDate(historyStartTime)} to ${formatDate(historyEndTime)}.${weekendNote}${newsCoverageNote} Latest provider quote: ${formatDate(latestProviderTime)}. News markers are colored by the latest Antigravity assessment; price triangles show direction versus the previous daily close.`;
+    }
+
+    function safeLink(value) {
+      try {
+        const url = new URL(value);
+        return ["https:", "http:"].includes(url.protocol) ? url.href : null;
+      } catch {
+        return null;
+      }
+    }
+
+    function renderNews() {
+      newsList.replaceChildren();
+      const sorted = [...articles].sort((a, b) =>
+        (parseDate(b.published_at)?.getTime() || 0) - (parseDate(a.published_at)?.getTime() || 0)
+      );
+      document.querySelector("#news-count").textContent = `${sorted.length} stories collected`;
+
+      for (const article of sorted) {
+        const card = element("article", "news-card");
+        card.dataset.articleId = article.id;
+        card.tabIndex = -1;
+        const meta = element("div", "news-meta");
+        meta.append(element("span", "news-source", article.source || "News"));
+        meta.append(element("time", "", formatDate(article.published_at || article.first_seen_at)));
+        card.append(meta);
+
+        const heading = element("h3");
+        const link = safeLink(article.url);
+        if (link) {
+          const anchor = element("a", "", article.title || "Untitled story");
+          anchor.href = link;
+          anchor.target = "_blank";
+          anchor.rel = "noopener noreferrer";
+          heading.append(anchor);
+        } else {
+          heading.textContent = article.title || "Untitled story";
+        }
+        card.append(heading);
+        if (article.summary) card.append(element("p", "news-summary", article.summary));
+        if (article.analysis) {
+          const analysis = element("div", "analysis-box");
+          const head = element("div", "analysis-head");
+          head.append(element("span", `analysis-direction ${article.analysis.direction}`,
+            `NVDA impact: ${article.analysis.direction}`));
+          head.append(element("span", `analysis-evidence ${article.analysis.validity}`,
+            `Evidence: ${article.analysis.validity}`));
+          if (article.analysis.assessment_type === "reassessment") {
+            head.append(element("span", "analysis-confidence",
+              `Reassessed · revision ${article.analysis.revision || 2}`));
+          } else if (article.analysis.assessment_type === "backfill") {
+            head.append(element("span", "analysis-confidence", "Initial review of older story"));
+          }
+          const confidence = Number(article.analysis.confidence);
+          if (Number.isInteger(confidence)) {
+            head.append(element("span", "analysis-confidence",
+              `${confidence}% model confidence · not calibrated`));
+          }
+          analysis.append(head);
+          if (article.analysis.summary) {
+            analysis.append(element("p", "analysis-copy", article.analysis.summary));
+          }
+          if (article.analysis.rationale) {
+            analysis.append(element("p", "analysis-copy", article.analysis.rationale));
+          }
+          const marketContext = article.analysis.market_context || {};
+          const moves = Object.entries(marketContext).map(([symbol, context]) =>
+            `${symbol === "nvda" ? "NVDA" : symbol.toUpperCase()} ${context.change_percent > 0 ? "+" : ""}${context.change_percent}% since publication`
+          );
+          if (moves.length) {
+            analysis.append(element(
+              "p",
+              "analysis-copy",
+              `Observed market move (not attribution): ${moves.join("; ")}. Assessed ${formatDate(article.analysis.assessed_at)}.`
+            ));
+          } else if (article.analysis.assessed_at) {
+            analysis.append(element("p", "analysis-copy", `Assessed ${formatDate(article.analysis.assessed_at)}.`));
+          }
+          card.append(analysis);
+        } else if (article.analysis_status === "skipped" ||
+                   article.analysis_status === "failed") {
+          card.append(element(
+            "p",
+            "analysis-unavailable",
+            article.analysis_status === "skipped"
+              ? "AI news analysis skipped: GEMINI_API_KEY is not configured."
+              : "AI news analysis failed for this collection; see the collection record for details."
+          ));
+        }
+        newsList.append(card);
+      }
+
+      if (!sorted.length) newsList.append(element("div", "empty", "No news stories have been collected yet."));
+    }
+
+    async function loadData() {
+      const updated = document.querySelector("#last-updated");
+      const refresh = document.querySelector("#refresh-button");
+      refresh.disabled = true;
+      updated.textContent = "Refreshing…";
+      try {
+        const indexResponse = await fetch(`data/nvda/index.json?t=${Date.now()}`, { cache: "no-store" });
+        if (!indexResponse.ok) throw new Error(`Data index request failed (${indexResponse.status})`);
+        const index = await indexResponse.json();
+        if (!Array.isArray(index.files)) throw new Error("Data index has an invalid format");
+        const files = await Promise.all(index.files.map(async file => {
+          if (typeof file !== "string" || !/^\d{4}-\d{2}-\d{2}\.jsonl$/.test(file)) {
+            throw new Error("Data index contains an invalid filename");
+          }
+          const response = await fetch(`data/nvda/${encodeURIComponent(file)}?t=${Date.now()}`, { cache: "no-store" });
+          if (!response.ok) throw new Error(`Could not load ${file} (${response.status})`);
+          return response.text();
+        }));
+
+        records = [];
+        articles = [];
+        for (const content of files) {
+          const lines = content.split(/\r?\n/).filter(Boolean);
+          for (const line of lines) {
+            const record = JSON.parse(line);
+            if (!record || typeof record !== "object" || !record.collected_at) continue;
+            records.push(record);
+            for (const article of record.news || []) {
+              articles.push({
+                ...article,
+                first_seen_at: article.first_seen_at || record.collected_at,
+                analysis_status: record.news_analysis?.status || "not_configured"
+              });
+            }
+          }
+        }
+        records.sort((a, b) => (parseDate(a.collected_at)?.getTime() || 0) - (parseDate(b.collected_at)?.getTime() || 0));
+        renderPriceCards();
+        renderNews();
+        drawChart();
+        const latest = records.at(-1);
+        updated.textContent = latest ? `Data collected ${formatDate(latest.collected_at)}` : "No collection data yet";
+      } catch (error) {
+        console.error("Could not load NVDA monitor data:", error);
+        priceCards.replaceChildren(element("div", "error", "Could not load NVDA data. The dashboard data may not have been published yet."));
+        chart.replaceChildren();
+        chartNote.textContent = "Data could not be loaded.";
+        newsList.replaceChildren(element("div", "error", "Could not load news. Please try refreshing later."));
+        updated.textContent = "Data unavailable";
+      } finally {
+        refresh.disabled = false;
+      }
+    }
+
+    document.querySelector("#refresh-button").addEventListener("click", loadData);
+    document.querySelectorAll("[data-range]").forEach(button => {
+      button.addEventListener("click", () => {
+        rangeDays = button.dataset.range === "all" ? "all" : Number(button.dataset.range);
+        document.querySelectorAll("[data-range]").forEach(item =>
+          item.setAttribute("aria-pressed", String(item === button))
+        );
+        drawChart();
+      });
+    });
+
+    window.setInterval(loadData, 5 * 60 * 1000);
+    loadData();
+  </script>
+</body>
+</html>

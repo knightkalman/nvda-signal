@@ -1,0 +1,11 @@
+services:
+  - type: worker
+    name: nvda-monitor
+    runtime: python
+    plan: starter
+    buildCommand: python -m py_compile nvda_monitor.py
+    startCommand: python nvda_monitor.py --interval 300 --output /var/data/nvda_monitor.jsonl --state-db /var/data/nvda_monitor_state.sqlite3
+    disk:
+      name: nvda-monitor-data
+      mountPath: /var/data
+      sizeGB: 1

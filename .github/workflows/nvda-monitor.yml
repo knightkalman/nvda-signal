@@ -1,0 +1,122 @@
+name: NVDA monitor
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/nvda-monitor.yml"
+      - "analyze_news.py"
+      - "build_api.py"
+      - "nvda_monitor.py"
+      - "nvda_signal_client.py"
+      - "tests/**"
+      - "site/**"
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nvda-monitor
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Collect NVDA prices and news
+        env:
+          MASSIVE_API_KEY: ${{ secrets.MASSIVE_API_KEY }}
+        run: |
+          output_path="data/nvda/$(date -u +%F).jsonl"
+          python nvda_monitor.py \
+            --once \
+            --output "$output_path" \
+            --state-db data/nvda_monitor_state.sqlite3
+          echo "NVDA_OUTPUT_PATH=$output_path" >> "$GITHUB_ENV"
+
+      - name: Analyze new and due older headlines with the managed Antigravity agent
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python analyze_news.py \
+            --file "$NVDA_OUTPUT_PATH" \
+            --data-dir data/nvda \
+            --state-file data/nvda_analysis_state.json \
+            --reassess-interval 3600 \
+            --reassess-cooldown 86400 \
+            --max-reassess-articles 5
+
+      - name: Save collected data
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -f data/nvda/ data/nvda_monitor_state.sqlite3
+          if [ -f data/nvda_analysis_state.json ]; then
+            git add -f data/nvda_analysis_state.json
+          fi
+          if ! git diff --cached --quiet; then
+            git commit -m "Update nvda monitor data"
+            git push
+          fi
+
+  deploy-dashboard:
+    needs: collect
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out repository data
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Set up dashboard data
+        run: |
+          mkdir -p site/data/nvda
+          cp data/nvda/*.jsonl site/data/nvda/
+          python - <<'PY'
+          import json
+          from pathlib import Path
+
+          files = sorted(path.name for path in Path("site/data/nvda").glob("*.jsonl"))
+          Path("site/data/nvda/index.json").write_text(
+              json.dumps({"files": files}), encoding="utf-8"
+          )
+          PY
+
+      - name: Build encrypted Agent API
+        env:
+          NVDA_SIGNAL_API_KEY: ${{ secrets.NVDA_SIGNAL_API_KEY }}
+        run: |
+          python build_api.py \
+            --data-dir data/nvda \
+            --output-dir site/api
+
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload dashboard
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - name: Deploy dashboard
+        id: deployment
+        uses: actions/deploy-pages@v4
