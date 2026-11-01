@@ -1,7 +1,7 @@
 # NVDA monitor (`nvda-signal`)
 
 A small Python background worker that collects public NVIDIA Corporation (`NVDA`)
-stock prices, plus NVIDIA/AI/semiconductor news, and appends one
+stock prices, plus NVIDIA news, and appends one
 machine-readable JSON object per collection cycle to a JSON Lines file.
 
 ## Run
@@ -56,8 +56,9 @@ variables** > **Actions** > **New repository secret**, named exactly
 Price data comes from Yahoo Finance's public chart endpoint for `NVDA`,
 combined with Massive's one-minute stock bars for `NVDA` when `MASSIVE_API_KEY`
 is configured. News comes from Yahoo Finance NVDA RSS, Google News NVDA feed,
-CNBC Technology & Business, and BBC Technology & Business. Broad technology and
-business feeds are filtered for NVIDIA, GPU, AI chip, and semiconductor topics.
+CNBC Technology & Business, and BBC Technology & Business. All feeds are
+filtered strictly for NVIDIA-related news (`nvidia`, `nvda`, `geforce`, `cuda`,
+`tensorrt`, `jensen huang`, `dgx`, `nvlink`, `omniverse`).
 
 ### Run on GitHub Actions and publish to GitHub Pages
 

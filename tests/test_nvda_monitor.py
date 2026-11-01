@@ -191,7 +191,7 @@ class NvdaNewsFeedTests(TestCase):
             "cnbc_technology",
             "https://feeds.example.com/tech/rss.xml",
             feed,
-            ("nvidia", "nvda", "blackwell"),
+            ("nvidia", "nvda", "geforce"),
         )
 
         self.assertEqual(len(articles), 1)

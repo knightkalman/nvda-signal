@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Collect public NVIDIA (NVDA) stock prices and semiconductor/AI news into a JSON Lines file."""
+"""Collect public NVIDIA (NVDA) stock prices and NVIDIA news into a JSON Lines file."""
 
 from __future__ import annotations
 
@@ -35,30 +35,19 @@ NVDA_KEYWORDS = (
     "geforce",
     "cuda",
     "tensorrt",
-    "blackwell",
-    "hopper",
-    "h100",
-    "h200",
-    "b200",
-    "gb200",
-    "rubin",
     "jensen huang",
     "dgx",
     "nvlink",
-    "mellanox",
     "omniverse",
-    "ai chip",
-    "ai gpu",
-    "data center gpu",
 )
 NEWS_FEEDS = {
     "yahoo_nvda": {
         "url": "https://feeds.finance.yahoo.com/rss/2.0/headline?s=NVDA&region=US&lang=en-US",
-        "keywords": (),
+        "keywords": NVDA_KEYWORDS,
     },
     "google_news_nvda": {
         "url": "https://news.google.com/rss/search?q=NVIDIA+OR+NVDA+when:7d&hl=en-US&gl=US&ceid=US:en",
-        "keywords": (),
+        "keywords": NVDA_KEYWORDS,
     },
     "cnbc_technology": {
         "url": "https://www.cnbc.com/id/19854910/device/rss/rss.html",
@@ -548,7 +537,7 @@ def collect_cycle(connection: sqlite3.Connection, output_path: Path) -> dict:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Continuously collect public NVDA stock prices and semiconductor/AI news."
+        description="Continuously collect public NVDA stock prices and NVIDIA news."
     )
     parser.add_argument(
         "--interval",
