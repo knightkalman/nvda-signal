@@ -324,6 +324,68 @@ class BuildApiTests(unittest.TestCase):
             )
             self.assertEqual(result["prices"]["nvda"]["price"], 205.0)
             self.assertEqual(result["news_sentiment"]["summary"]["total_stories"], 3)
+            # Verify new dynamics and source verification fields exist in payload
+            self.assertIn("dynamics", result["news_sentiment"])
+            self.assertIn("source_verification", result["news_sentiment"])
+            self.assertIn("decay_weighted_score", result["news_sentiment"]["summary"])
+
+    def test_news_sentiment_decay_velocity_and_verification(self) -> None:
+        from build_api import build_news_sentiment
+        ref_time = datetime(2026, 10, 31, 12, 0, 0, tzinfo=timezone.utc)
+        records = [
+            {
+                "schema_version": 1,
+                "collected_at": "2026-10-31T11:30:00Z",
+                "news": [
+                    {
+                        "id": "sec:filing-1",
+                        "published_at": "2026-10-31T11:30:00Z",
+                        "analysis": {
+                            "direction": "bullish",
+                            "confidence": 95,
+                            "catalyst_category": "corporate_earnings_guidance",
+                            "surprise_factor": "major_surprise",
+                            "temporal_horizon": "multi_day_drift",
+                            "source_tier": 1,
+                        },
+                    },
+                    {
+                        "id": "reuters:story-2",
+                        "published_at": "2026-10-31T08:00:00Z",
+                        "analysis": {
+                            "direction": "bearish",
+                            "confidence": 65,
+                            "catalyst_category": "regulatory_legal",
+                            "surprise_factor": "inline_expected",
+                            "temporal_horizon": "structural_macro",
+                            "source_tier": 2,
+                        },
+                    },
+                ],
+            }
+        ]
+        sentiment = build_news_sentiment(records, ref_time)
+        summary = sentiment["summary"]
+        dynamics = sentiment["dynamics"]
+        verification = sentiment["source_verification"]
+
+        self.assertEqual(summary["total_stories"], 2)
+        self.assertEqual(summary["assessed_stories"], 2)
+        self.assertGreater(summary["decay_weighted_score"], 0.0)
+        self.assertIn("velocity_1h", dynamics)
+        self.assertIn("velocity_6h", dynamics)
+        self.assertIn("acceleration", dynamics)
+        self.assertGreater(dynamics["velocity_1h"], 0.0)
+        self.assertEqual(verification["tier1_confirmations"], 1)
+        self.assertEqual(verification["tier2_confirmations"], 1)
+        self.assertTrue(verification["has_tier1_validation"])
+        self.assertIn("corporate_earnings_guidance", dynamics["catalyst_breakdown"])
+
+        # Test zero/empty edge case
+        empty_sentiment = build_news_sentiment([], ref_time)
+        self.assertEqual(empty_sentiment["summary"]["decay_weighted_score"], 0.0)
+        self.assertEqual(empty_sentiment["dynamics"]["velocity_1h"], 0.0)
+        self.assertFalse(empty_sentiment["source_verification"]["has_tier1_validation"])
 
 
 if __name__ == "__main__":
